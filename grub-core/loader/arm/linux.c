@@ -219,6 +219,31 @@ failure:
   return grub_error (GRUB_ERR_BAD_ARGUMENT, "unable to prepare FDT");
 }
 
+#ifdef GRUB_MACHINE_EFI
+/* from ../arm64/fdt.c */
+static void *
+get_firmware_fdt (void)
+{
+  grub_efi_configuration_table_t *tables;
+  grub_efi_guid_t fdt_guid = GRUB_EFI_DEVICE_TREE_GUID;
+  void *firmware_fdt = NULL;
+  unsigned int i;
+
+  /* Look for FDT in UEFI config tables. */
+  tables = grub_efi_system_table->configuration_table;
+
+  for (i = 0; i < grub_efi_system_table->num_table_entries; i++)
+    if (grub_memcmp (&tables[i].vendor_guid, &fdt_guid, sizeof (fdt_guid)) == 0)
+      {
+        firmware_fdt = tables[i].vendor_table;
+        grub_dprintf ("linux", "found registered FDT @ %p\n", firmware_fdt);
+        break;
+      }
+
+  return firmware_fdt;
+}
+#endif
+
 static grub_err_t
 linux_boot (void)
 {
@@ -235,6 +260,23 @@ linux_boot (void)
 		*((const grub_uint32_t *) current_fdt),
 		(const char *) current_fdt,
 		(const char *) current_fdt + 1);
+
+#ifdef GRUB_MACHINE_EFI
+  if (!fdt_valid) {
+    void *ptr = get_firmware_fdt();
+    int size = ptr ? grub_fdt_get_totalsize(ptr) : 0;
+    int extra = grub_strlen (linux_args) + 0x100;
+    if (ptr && size) {
+      fdt_addr = grub_efi_allocate_loader_memory (LINUX_FDT_PHYS_OFFSET, size extra);
+      if (fdt_addr) {
+        grub_memcpy (fdt_addr, ptr, size);
+        fdt_valid = (fdt_addr && grub_fdt_check_header_nosize (fdt_addr) == 0);
+        grub_dprintf ("loader", "firmware fdt: memcpy(%p, %p, %d)\n",
+                      fdt_addr, ptr, size);
+      }
+    }
+  }
+#endif
 
   if (!fdt_valid && machine_type == GRUB_ARM_MACHINE_TYPE_FDT)
     return grub_error (GRUB_ERR_FILE_NOT_FOUND,
