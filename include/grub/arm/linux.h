@@ -41,9 +41,9 @@ struct linux_arm_kernel_header {
 
 #if defined GRUB_MACHINE_UBOOT
 # include <grub/uboot/uboot.h>
-# define LINUX_ADDRESS        (start_of_ram + 0x8000)
+# define LINUX_ADDRESS        (start_of_ram + 0x00020000)
 # define LINUX_INITRD_ADDRESS (start_of_ram + 0x03000000)
-# define LINUX_FDT_ADDRESS    (LINUX_INITRD_ADDRESS - 0x10000)
+# define LINUX_FDT_ADDRESS    (LINUX_INITRD_ADDRESS - 0x20000)
 # define grub_arm_firmware_get_boot_data grub_uboot_get_boot_data
 # define grub_arm_firmware_get_machine_type grub_uboot_get_machine_type
 #elif defined (GRUB_MACHINE_COREBOOT)
